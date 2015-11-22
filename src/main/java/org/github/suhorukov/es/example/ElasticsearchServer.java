@@ -1,5 +1,6 @@
 package org.github.suhorukov.es.example;
 
+import org.apache.commons.io.IOUtils;
 import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeBuilder;
@@ -17,12 +18,13 @@ public class ElasticsearchServer {
 
         String template;
         try(InputStream templateStream = new URL("https://raw.githubusercontent.com/logstash-plugins/logstash-output-elasticsearch/master/lib/logstash/outputs/elasticsearch/elasticsearch-template.json").openStream()){
-            template = new String(sun.misc.IOUtils.readFully(templateStream, -1, true));
+            template = IOUtils.toString(templateStream);
         }
 
         Node elasticsearchServer = NodeBuilder.nodeBuilder().settings(ImmutableSettings.settingsBuilder().put("http.cors.enabled","true")).clusterName("elasticsearchServer").data(true).build();
         Node node = elasticsearchServer.start();
         node.client().admin().indices().preparePutTemplate("logstash").setSource(template).get();
+        System.out.println("ES STARTED");
 
         Thread.sleep(TimeUnit.SECONDS.toMillis(durationInSeconds));
     }

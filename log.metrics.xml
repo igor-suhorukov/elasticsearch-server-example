@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<configuration>
+    <globalContext>
+        <artifacts>
+            <artifact>com.github.igor-suhorukov:jvm-metrics:1.2</artifact>
+            <classRefs>
+                <variable>SigarCollect</variable><className>org.github.suhorukov.SigarCollect</className>
+            </classRefs>
+            <classRefs>
+                <variable>JmxCollect</variable><className>org.github.suhorukov.JmxCollect</className>
+            </classRefs>
+        </artifacts>
+        <artifacts>
+            <artifact>org.elasticsearch:elasticsearch:1.1.1</artifact>
+            <classRefs>
+                <variable>NodeBuilder</variable><className>org.elasticsearch.node.NodeBuilder</className>
+            </classRefs>
+        </artifacts>
+        <init>
+            <expression>
+                SigarCollect sigar = new SigarCollect();
+                JmxCollect jmxCollect = new JmxCollect();
+
+                reportHost = java.net.InetAddress.getLocalHost().getHostName();
+                pid = java.lang.management.ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
+
+                prevClassLoader = Thread.currentThread().getContextClassLoader();
+                Thread.currentThread().setContextClassLoader(NodeBuilder.class.getClassLoader());
+                client = NodeBuilder.nodeBuilder().clusterName("elasticsearchServer").data(false).client(true).build().start().client();
+                Thread.currentThread().setContextClassLoader(prevClassLoader);
+
+                additionalRecords = new java.util.HashMap();
+                additionalRecords.put("Host", reportHost);  additionalRecords.put("Pid", pid);
+            </expression>
+        </init>
+        <timerTasks>
+            <delay>500</delay>
+            <period>2000</period>
+            <jobExpression>
+                import java.text.SimpleDateFormat;
+                import java.util.TimeZone;
+
+                logstashFormat = new SimpleDateFormat("yyyy.MM.dd");
+                logstashFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+                timestamp = new java.util.Date(); index = "logstash-" + logstashFormat.format(timestamp);
+                jmxInfo = jmxCollect.getJsonJmxInfo("java.lang:type=Memory", timestamp, additionalRecords);
+                nativeInfo = sigar.getJsonProcessInfo(additionalRecords);
+                client.index(client.prepareIndex(index, "logs").setSource(jmxInfo).request()).actionGet();
+                client.index(client.prepareIndex(index, "logs").setSource(nativeInfo).request()).actionGet();
+            </jobExpression>
+        </timerTasks>
+    </globalContext>
+</configuration>
