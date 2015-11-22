@@ -10,7 +10,7 @@ int durationInSeconds = args.length == 0 ? 3600 : Integer.parseInt(this.args[0])
 String template;
 InputStream templateStream = new URL("https://raw.githubusercontent.com/logstash-plugins/logstash-output-elasticsearch/master/lib/logstash/outputs/elasticsearch/elasticsearch-template.json").openStream()
 try{
-    template = new String(IOUtils.readFully(templateStream, -1, true));
+    template = new String(sun.misc.IOUtils.readFully(templateStream, -1, true));
 } finally{
     templateStream.close()
 }
